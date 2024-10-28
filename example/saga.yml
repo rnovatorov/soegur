@@ -1,0 +1,63 @@
+steps:
+  - id: X
+    task:
+      type: delay
+      input:
+        delay: "$_config.default_delay"
+        # fail: "true"
+    compensating_task:
+      type: delay
+      input:
+        delay: "3"
+
+  - id: A
+    task:
+      type: add
+      input:
+        a: "2"
+        b: "3"
+    compensating_task:
+      type: delay
+      input:
+        delay: "3"
+
+  - id: B
+    dependencies:
+      - A
+    task:
+      type: multiply
+      input:
+        a: "$A"
+        b: "2"
+    compensating_task:
+      type: delay
+      input:
+        delay: "3"
+
+  - id: C
+    dependencies:
+      - A
+    task:
+      type: multiply
+      input:
+        a: "$A"
+        b: "3"
+    compensating_task:
+      type: delay
+      input:
+        delay: "3"
+
+  - id: D
+    dependencies:
+      - B
+      - C
+      - X
+    task:
+      type: add
+      input:
+        a: "$B"
+        b: "$C"
+    compensating_task:
+      type: delay
+      input:
+        delay: "3"

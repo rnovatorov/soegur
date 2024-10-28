@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package internal.api.sagaevents;
+
+option go_package = "github.com/rnovatorov/soegur/internal/api/sagaeventspb";
+
+import "google/protobuf/struct.proto";
+
+import "internal/api/sagaspecpb/spec.proto";
+
+message SagaBegun {
+    internal.api.sagaspec.Saga spec = 1;
+    google.protobuf.Struct config = 2;
+}
+
+message SagaEnded {
+}
+
+message StepBegun {
+    string id = 1;
+}
+
+message StepEnded {
+    string id = 1;
+    google.protobuf.Value output = 2;
+}
+
+message StepAborted {
+    string id = 1;
+    string reason = 2;
+}
+
+message StepCompensationBegun {
+    string id = 1;
+}
+
+message StepCompensationEnded {
+    string id = 1;
+}

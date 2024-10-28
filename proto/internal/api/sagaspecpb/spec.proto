@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package internal.api.sagaspec;
+
+option go_package = "github.com/rnovatorov/soegur/internal/api/sagaspecpb";
+
+message Saga {
+    repeated Step steps = 1;
+}
+
+message Step {
+    string id = 1;
+    repeated string dependencies = 2;
+    Task task = 3;
+    Task compensating_task = 4;
+}
+
+message Task {
+    string type = 1;
+    map<string, string> input = 2;
+}
