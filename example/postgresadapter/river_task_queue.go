@@ -10,7 +10,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
-	"github.com/rnovatorov/soegur/internal/api/sagataskqueuepb"
+	"github.com/rnovatorov/soegur"
 )
 
 type RiverTaskQueue struct {
@@ -38,11 +38,11 @@ func (q *RiverTaskQueue) Stop() {
 }
 
 func (q *RiverTaskQueue) EnqueueTask(
-	ctx context.Context, req *sagataskqueuepb.EnqueueRequest,
+	ctx context.Context, req *soegur.EnqueueTaskRequest,
 ) error {
 	if _, err := q.client.Insert(ctx, &riverTaskWorkerArgs{
-		SagaID:       req.SagaId,
-		StepID:       req.StepId,
+		SagaID:       req.SagaID,
+		StepID:       req.StepID,
 		Compensation: req.Compensation,
 		TaskType:     req.TaskType,
 		TaskInput:    req.TaskInput,

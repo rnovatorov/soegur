@@ -10,12 +10,27 @@ import (
 
 	"github.com/rnovatorov/soegur/internal/api/sagaeventspb"
 	"github.com/rnovatorov/soegur/internal/api/sagaspecpb"
-	"github.com/rnovatorov/soegur/internal/api/sagataskqueuepb"
 	"github.com/rnovatorov/soegur/internal/model"
 )
 
+type EnqueueTaskRequest struct {
+	SagaID       string
+	StepID       string
+	Compensation bool
+	TaskType     string
+	TaskInput    *structpb.Struct
+}
+
+type TaskExecutionResult struct {
+	SagaID       string
+	StepID       string
+	Compensation bool
+	Output       *structpb.Value
+	Error        string
+}
+
 type TaskQueue interface {
-	EnqueueTask(context.Context, *sagataskqueuepb.EnqueueRequest) error
+	EnqueueTask(context.Context, *EnqueueTaskRequest) error
 }
 
 type OrchestratorService struct {
@@ -132,9 +147,9 @@ func (s *OrchestratorService) handleStepBegun(
 		return nil
 	}
 
-	return s.taskQueue.EnqueueTask(ctx, &sagataskqueuepb.EnqueueRequest{
-		SagaId:       saga.ID(),
-		StepId:       d.Id,
+	return s.taskQueue.EnqueueTask(ctx, &EnqueueTaskRequest{
+		SagaID:       saga.ID(),
+		StepID:       d.Id,
 		Compensation: false,
 		TaskType:     saga.Root().TaskType(d.Id),
 		TaskInput:    input,
@@ -163,9 +178,9 @@ func (s *OrchestratorService) handleStepCompensationBegun(
 		return nil
 	}
 
-	return s.taskQueue.EnqueueTask(ctx, &sagataskqueuepb.EnqueueRequest{
-		SagaId:       saga.ID(),
-		StepId:       d.Id,
+	return s.taskQueue.EnqueueTask(ctx, &EnqueueTaskRequest{
+		SagaID:       saga.ID(),
+		StepID:       d.Id,
 		Compensation: true,
 		TaskType:     saga.Root().CompensatingTaskType(d.Id),
 		TaskInput:    input,
@@ -173,7 +188,7 @@ func (s *OrchestratorService) handleStepCompensationBegun(
 }
 
 func (s *OrchestratorService) HandleTaskExecutionResult(
-	ctx context.Context, res *sagataskqueuepb.ExecutionResult,
+	ctx context.Context, res *TaskExecutionResult,
 ) error {
 	if res.Compensation {
 		return s.handleCompensatingTaskExecutionResult(ctx, res)
@@ -182,37 +197,37 @@ func (s *OrchestratorService) HandleTaskExecutionResult(
 }
 
 func (s *OrchestratorService) handleTaskExecutionResult(
-	ctx context.Context, res *sagataskqueuepb.ExecutionResult,
+	ctx context.Context, res *TaskExecutionResult,
 ) error {
 	if res.Error != "" {
-		_, err := s.sagaRepository.Update(ctx, res.SagaId, model.AbortStep{
-			ID:     res.StepId,
+		_, err := s.sagaRepository.Update(ctx, res.SagaID, model.AbortStep{
+			ID:     res.StepID,
 			Reason: res.Error,
 		})
 		return err
 	}
 
-	_, err := s.sagaRepository.Update(ctx, res.SagaId, model.EndStep{
-		ID:     res.StepId,
+	_, err := s.sagaRepository.Update(ctx, res.SagaID, model.EndStep{
+		ID:     res.StepID,
 		Output: res.Output,
 	})
 	return err
 }
 
 func (s *OrchestratorService) handleCompensatingTaskExecutionResult(
-	ctx context.Context, res *sagataskqueuepb.ExecutionResult,
+	ctx context.Context, res *TaskExecutionResult,
 ) error {
 	if res.Error != "" {
-		_, err := s.sagaRepository.Update(ctx, res.SagaId,
+		_, err := s.sagaRepository.Update(ctx, res.SagaID,
 			model.AbortStepCompensation{
-				ID:     res.StepId,
+				ID:     res.StepID,
 				Reason: res.Error,
 			})
 		return err
 	}
 
-	_, err := s.sagaRepository.Update(ctx, res.SagaId, model.EndStepCompensation{
-		ID: res.StepId,
+	_, err := s.sagaRepository.Update(ctx, res.SagaID, model.EndStepCompensation{
+		ID: res.StepID,
 	})
 	return err
 }

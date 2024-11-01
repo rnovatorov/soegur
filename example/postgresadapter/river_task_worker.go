@@ -11,7 +11,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/rnovatorov/soegur/internal/api/sagataskqueuepb"
+	"github.com/rnovatorov/soegur"
 )
 
 type taskExecutor func(
@@ -19,7 +19,7 @@ type taskExecutor func(
 ) (*structpb.Value, error)
 
 type taskExecutionResultHandler interface {
-	HandleTaskExecutionResult(context.Context, *sagataskqueuepb.ExecutionResult) error
+	HandleTaskExecutionResult(context.Context, *soegur.TaskExecutionResult) error
 }
 
 type RiverTaskWorker struct {
@@ -88,21 +88,21 @@ type riverTaskWorker struct {
 func (w *riverTaskWorker) Work(
 	ctx context.Context, job *river.Job[riverTaskWorkerArgs],
 ) error {
-	var result *sagataskqueuepb.ExecutionResult
+	var result *soegur.TaskExecutionResult
 
 	output, err := w.executor(ctx, job.Args.TaskType, job.Args.TaskInput)
 	if err != nil {
-		result = &sagataskqueuepb.ExecutionResult{
-			SagaId:       job.Args.SagaID,
-			StepId:       job.Args.StepID,
+		result = &soegur.TaskExecutionResult{
+			SagaID:       job.Args.SagaID,
+			StepID:       job.Args.StepID,
 			Compensation: job.Args.Compensation,
 			Output:       nil,
 			Error:        err.Error(),
 		}
 	} else {
-		result = &sagataskqueuepb.ExecutionResult{
-			SagaId:       job.Args.SagaID,
-			StepId:       job.Args.StepID,
+		result = &soegur.TaskExecutionResult{
+			SagaID:       job.Args.SagaID,
+			StepID:       job.Args.StepID,
 			Compensation: job.Args.Compensation,
 			Output:       output,
 			Error:        "",
