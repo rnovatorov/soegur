@@ -1,25 +1,27 @@
 steps:
   - id: X
     task:
-      type: delay
+      type: noop
       input:
-        delay: "$_config.default_delay"
-        # fail: "true"
+        max_delay: "$_config.max_delay * 2"
+        fail: "$_config.fail"
     compensating_task:
-      type: delay
+      type: noop
       input:
-        delay: "3"
+        max_delay: "$_config.max_delay"
 
   - id: A
     task:
       type: add
       input:
-        a: "2"
-        b: "3"
+        a: "1"
+        b: "2"
+        max_delay: "$_config.max_delay"
+        fail: "$_config.fail"
     compensating_task:
-      type: delay
+      type: noop
       input:
-        delay: "3"
+        max_delay: "$_config.max_delay"
 
   - id: B
     dependencies:
@@ -29,23 +31,25 @@ steps:
       input:
         a: "$A"
         b: "2"
+        max_delay: "$_config.max_delay"
     compensating_task:
-      type: delay
+      type: noop
       input:
-        delay: "3"
+        max_delay: "$_config.max_delay"
 
   - id: C
     dependencies:
       - A
     task:
-      type: multiply
+      type: add
       input:
         a: "$A"
-        b: "3"
+        b: "4"
+        max_delay: "$_config.max_delay"
     compensating_task:
-      type: delay
+      type: noop
       input:
-        delay: "3"
+        max_delay: "$_config.max_delay"
 
   - id: D
     dependencies:
@@ -53,11 +57,12 @@ steps:
       - C
       - X
     task:
-      type: add
+      type: multiply
       input:
         a: "$B"
         b: "$C"
+        max_delay: "$_config.max_delay"
     compensating_task:
-      type: delay
+      type: noop
       input:
-        delay: "3"
+        max_delay: "$_config.max_delay"

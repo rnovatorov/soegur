@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"os"
 	"os/signal"
 	"syscall"
@@ -85,7 +86,8 @@ func run(ctx context.Context) error {
 	}
 
 	config, err := structpb.NewStruct(map[string]any{
-		"default_delay": 10,
+		"max_delay": 1000,
+		"fail":      0.25,
 	})
 	if err != nil {
 		return fmt.Errorf("new config struct: %w", err)
@@ -102,7 +104,22 @@ func run(ctx context.Context) error {
 func executeTask(
 	ctx context.Context, taskType string, input *structpb.Struct,
 ) (*structpb.Value, error) {
+	delay := time.Millisecond * time.Duration(
+		rand.Float64()*input.Fields["max_delay"].GetNumberValue())
+	select {
+	case <-time.After(delay):
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	fail := input.Fields["fail"].GetNumberValue()
+	if fail > rand.Float64() {
+		return nil, errors.New("oops")
+	}
+
 	switch taskType {
+	case "noop":
+		return structpb.NewNullValue(), nil
 	case "add":
 		a := input.Fields["a"].GetNumberValue()
 		b := input.Fields["b"].GetNumberValue()
@@ -111,20 +128,8 @@ func executeTask(
 		a := input.Fields["a"].GetNumberValue()
 		b := input.Fields["b"].GetNumberValue()
 		return structpb.NewNumberValue(a * b), nil
-	case "delay":
-		delay := input.Fields["delay"].GetNumberValue()
-		fail := input.Fields["fail"].GetBoolValue()
-		select {
-		case <-time.After(time.Duration(delay) * time.Second):
-			if fail {
-				return nil, errors.New("oops")
-			}
-			return input.Fields["delay"], nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
 	default:
-		return nil, errors.New("not implemented")
+		return nil, fmt.Errorf("not implemented: %s", taskType)
 	}
 }
 
