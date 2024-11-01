@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/rnovatorov/soegur/internal/api/sagaspecpb"
 )
@@ -132,5 +133,6 @@ func (g *dependencyGraph) transitiveDependencies(id string) []string {
 	}
 	dfs(id)
 
+	sort.Strings(result)
 	return result
 }
