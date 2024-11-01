@@ -54,7 +54,25 @@ func (s *OrchestratorService) HandleSagaEvent(
 		return fmt.Errorf("unmarshal data: %w", err)
 	}
 
+	if err := s.handleSagaEvent(ctx, event, data); err != nil {
+		return fmt.Errorf("%T: %w", data, err)
+	}
+
+	return nil
+}
+
+func (s *OrchestratorService) handleSagaEvent(
+	ctx context.Context, event *eventstore.Event, data eventsource.StateChange,
+) error {
 	switch d := data.(type) {
+	case *sagaeventspb.SagaBegun:
+		return s.handleSagaBegun(ctx, event, d)
+	case *sagaeventspb.StepEnded:
+		return s.handleStepEnded(ctx, event, d)
+	case *sagaeventspb.StepAborted:
+		return s.handleStepAborted(ctx, event, d)
+	case *sagaeventspb.StepCompensationEnded:
+		return s.handleStepCompensationEnded(ctx, event, d)
 	case *sagaeventspb.StepBegun:
 		return s.handleStepBegun(ctx, event, d)
 	case *sagaeventspb.StepCompensationBegun:
@@ -62,6 +80,34 @@ func (s *OrchestratorService) HandleSagaEvent(
 	default:
 		return nil
 	}
+}
+
+func (s *OrchestratorService) handleSagaBegun(
+	ctx context.Context, e *eventstore.Event, _ *sagaeventspb.SagaBegun,
+) error {
+	_, err := s.sagaRepository.Update(ctx, e.AggregateID, model.TriggerNextSteps{})
+	return err
+}
+
+func (s *OrchestratorService) handleStepEnded(
+	ctx context.Context, e *eventstore.Event, _ *sagaeventspb.StepEnded,
+) error {
+	_, err := s.sagaRepository.Update(ctx, e.AggregateID, model.TriggerNextSteps{})
+	return err
+}
+
+func (s *OrchestratorService) handleStepAborted(
+	ctx context.Context, e *eventstore.Event, _ *sagaeventspb.StepAborted,
+) error {
+	_, err := s.sagaRepository.Update(ctx, e.AggregateID, model.TriggerNextSteps{})
+	return err
+}
+
+func (s *OrchestratorService) handleStepCompensationEnded(
+	ctx context.Context, e *eventstore.Event, _ *sagaeventspb.StepCompensationEnded,
+) error {
+	_, err := s.sagaRepository.Update(ctx, e.AggregateID, model.TriggerNextSteps{})
+	return err
 }
 
 func (s *OrchestratorService) handleStepBegun(

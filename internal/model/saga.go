@@ -8,11 +8,13 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/rnovatorov/soegur/internal/api/sagaeventspb"
+	"github.com/rnovatorov/soegur/internal/api/sagaspecpb"
 )
 
 type SagaAggregate = eventsource.Aggregate[Saga, *Saga]
 
 type Saga struct {
+	spec            *sagaspecpb.Saga
 	steps           map[string]*Step
 	dependencyGraph *dependencyGraph
 	config          *structpb.Struct
@@ -23,21 +25,6 @@ type Saga struct {
 
 func (s *Saga) Config() *structpb.Struct {
 	return s.config
-}
-
-func (s *Saga) Copy() *Saga {
-	steps := make(map[string]*Step, len(s.steps))
-	for id, step := range s.steps {
-		steps[id] = step.copy()
-	}
-	return &Saga{
-		steps:           s.steps,
-		dependencyGraph: s.dependencyGraph,
-		config:          s.config,
-		begun:           s.begun,
-		aborted:         s.aborted,
-		ended:           s.ended,
-	}
 }
 
 func (s *Saga) Begun() bool {
@@ -139,6 +126,8 @@ func (s *Saga) ProcessCommand(
 	switch cmd := command.(type) {
 	case BeginSaga:
 		return s.processBegin(cmd)
+	case TriggerNextSteps:
+		return s.processTriggerNextSteps(cmd)
 	case EndStep:
 		return s.processEndStep(cmd)
 	case AbortStep:
@@ -172,18 +161,49 @@ func (s *Saga) processBegin(cmd BeginSaga) (eventsource.StateChanges, error) {
 		}
 	}
 
-	stateChanges := eventsource.StateChanges{&sagaeventspb.SagaBegun{
+	return eventsource.StateChanges{&sagaeventspb.SagaBegun{
 		Spec:   cmd.Spec,
 		Config: cmd.Config,
-	}}
+	}}, nil
+}
 
-	eventsource.Given(s, stateChanges, func() {
-		for _, id := range s.beginnableSteps() {
-			stateChanges = append(stateChanges, &sagaeventspb.StepBegun{
-				Id: id,
-			})
-		}
-	})
+func (s *Saga) processTriggerNextSteps(
+	TriggerNextSteps,
+) (eventsource.StateChanges, error) {
+	if !s.begun {
+		return nil, ErrSagaNotBegun
+	}
+	if s.ended {
+		return eventsource.StateChanges{}, nil
+	}
+
+	var stateChanges eventsource.StateChanges
+
+	stepBegun := false
+	for _, id := range s.beginnableSteps() {
+		stateChanges = append(stateChanges, &sagaeventspb.StepBegun{
+			Id: id,
+		})
+		stepBegun = true
+	}
+	if stepBegun {
+		return stateChanges, nil
+	}
+
+	compensationBegun := false
+	for _, id := range s.beginnableCompensations() {
+		stateChanges = append(stateChanges, &sagaeventspb.StepCompensationBegun{
+			Id: id,
+		})
+		compensationBegun = true
+	}
+	if compensationBegun {
+		return stateChanges, nil
+	}
+
+	if !s.hasStepsInProgress() && !s.hasCompensationsInProgress() {
+		stateChanges = append(stateChanges, &sagaeventspb.SagaEnded{})
+	}
 
 	return stateChanges, nil
 }
@@ -211,34 +231,10 @@ func (s *Saga) processEndStep(cmd EndStep) (eventsource.StateChanges, error) {
 		return nil, ErrStepOutputMissing
 	}
 
-	stateChanges := eventsource.StateChanges{&sagaeventspb.StepEnded{
+	return eventsource.StateChanges{&sagaeventspb.StepEnded{
 		Id:     cmd.ID,
 		Output: cmd.Output,
-	}}
-
-	eventsource.Given(s, stateChanges, func() {
-		if s.aborted {
-			for _, id := range s.beginnableCompensations() {
-				stateChanges = append(stateChanges,
-					&sagaeventspb.StepCompensationBegun{
-						Id: id,
-					})
-			}
-			return
-		}
-		taskBegun := false
-		for _, id := range s.beginnableSteps() {
-			stateChanges = append(stateChanges, &sagaeventspb.StepBegun{
-				Id: id,
-			})
-			taskBegun = true
-		}
-		if !taskBegun && !s.hasStepsInProgress() {
-			stateChanges = append(stateChanges, &sagaeventspb.SagaEnded{})
-		}
-	})
-
-	return stateChanges, nil
+	}}, nil
 }
 
 func (s *Saga) processAbortStep(cmd AbortStep) (eventsource.StateChanges, error) {
@@ -264,26 +260,10 @@ func (s *Saga) processAbortStep(cmd AbortStep) (eventsource.StateChanges, error)
 		return nil, ErrStepAbortReasonMissing
 	}
 
-	stateChanges := eventsource.StateChanges{&sagaeventspb.StepAborted{
+	return eventsource.StateChanges{&sagaeventspb.StepAborted{
 		Id:     cmd.ID,
 		Reason: cmd.Reason,
-	}}
-
-	eventsource.Given(s, stateChanges, func() {
-		compensationBegun := false
-		for _, id := range s.beginnableCompensations() {
-			stateChanges = append(stateChanges,
-				&sagaeventspb.StepCompensationBegun{
-					Id: id,
-				})
-			compensationBegun = true
-		}
-		if !compensationBegun && !s.hasStepsInProgress() && !s.hasCompensationsInProgress() {
-			stateChanges = append(stateChanges, &sagaeventspb.SagaEnded{})
-		}
-	})
-
-	return stateChanges, nil
+	}}, nil
 }
 
 func (s *Saga) processEndStepCompensation(
@@ -304,25 +284,9 @@ func (s *Saga) processEndStepCompensation(
 		return nil, ErrStepCompensationAlreadyEnded
 	}
 
-	stateChanges := eventsource.StateChanges{&sagaeventspb.StepCompensationEnded{
+	return eventsource.StateChanges{&sagaeventspb.StepCompensationEnded{
 		Id: cmd.ID,
-	}}
-
-	eventsource.Given(s, stateChanges, func() {
-		compensationBegun := false
-		for _, id := range s.beginnableCompensations() {
-			stateChanges = append(stateChanges,
-				&sagaeventspb.StepCompensationBegun{
-					Id: id,
-				})
-			compensationBegun = true
-		}
-		if !compensationBegun && !s.hasStepsInProgress() && !s.hasCompensationsInProgress() {
-			stateChanges = append(stateChanges, &sagaeventspb.SagaEnded{})
-		}
-	})
-
-	return stateChanges, nil
+	}}, nil
 }
 
 func (s *Saga) processAbortStepCompensation(
@@ -440,6 +404,7 @@ func (s *Saga) ApplyStateChange(stateChange eventsource.StateChange) {
 }
 
 func (s *Saga) applySagaBegun(sc *sagaeventspb.SagaBegun) {
+	s.spec = sc.Spec
 	s.config = sc.Config
 	s.begun = true
 	s.dependencyGraph, _ = buildDependencyGraph(sc.Spec.Steps)

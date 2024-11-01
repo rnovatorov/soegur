@@ -11,6 +11,8 @@ type BeginSaga struct {
 	Config *structpb.Struct
 }
 
+type TriggerNextSteps struct{}
+
 type EndStep struct {
 	ID     string
 	Output *structpb.Value

@@ -3,7 +3,6 @@ package model
 import (
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/rnovatorov/soegur/internal/api/sagaspecpb"
@@ -50,19 +49,4 @@ func (s *Step) inProgress() bool {
 
 func (s *Step) compensationInProgress() bool {
 	return s.compensationBegun && !s.compensationEnded
-}
-
-func (s *Step) copy() *Step {
-	return &Step{
-		spec:              proto.Clone(s.spec).(*sagaspecpb.Step),
-		task:              s.task,
-		compensatingTask:  s.compensatingTask,
-		begun:             s.begun,
-		ended:             s.ended,
-		output:            proto.Clone(s.output).(*structpb.Value),
-		aborted:           s.aborted,
-		abortReason:       s.abortReason,
-		compensationBegun: s.compensationBegun,
-		compensationEnded: s.compensationEnded,
-	}
 }

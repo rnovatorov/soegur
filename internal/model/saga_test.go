@@ -33,24 +33,29 @@ func (s *SagaSuite) TestSequence() {
 	s.Require().Equal([]string(nil), s.saga.Root().StepTransitiveDependencies("a"))
 	s.Require().Equal([]string{"a"}, s.saga.Root().StepTransitiveDependencies("b"))
 	s.Require().Equal([]string{"a", "b"}, s.saga.Root().StepTransitiveDependencies("c"))
+
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepInProgress("a"))
 	s.Require().False(s.saga.Root().StepInProgress("b"))
 	s.Require().False(s.saga.Root().StepInProgress("c"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "a", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepInProgress("b"))
 	s.Require().False(s.saga.Root().StepInProgress("c"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "b", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("b"))
 	s.Require().True(s.saga.Root().StepInProgress("c"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "c", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().Ended())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("b"))
@@ -70,6 +75,8 @@ func (s *SagaSuite) TestDiamond() {
 	s.Require().Equal([]string{"a"}, s.saga.Root().StepTransitiveDependencies("b"))
 	s.Require().Equal([]string{"a"}, s.saga.Root().StepTransitiveDependencies("c"))
 	s.Require().Equal([]string{"a", "b", "c"}, s.saga.Root().StepTransitiveDependencies("d"))
+
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepInProgress("a"))
 	s.Require().False(s.saga.Root().StepInProgress("b"))
@@ -77,6 +84,7 @@ func (s *SagaSuite) TestDiamond() {
 	s.Require().False(s.saga.Root().StepInProgress("d"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "a", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepInProgress("b"))
@@ -84,6 +92,7 @@ func (s *SagaSuite) TestDiamond() {
 	s.Require().False(s.saga.Root().StepInProgress("d"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "b", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("b"))
@@ -91,6 +100,7 @@ func (s *SagaSuite) TestDiamond() {
 	s.Require().False(s.saga.Root().StepInProgress("d"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "c", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("b"))
@@ -98,6 +108,7 @@ func (s *SagaSuite) TestDiamond() {
 	s.Require().True(s.saga.Root().StepInProgress("d"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "d", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().Ended())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("b"))
@@ -165,6 +176,8 @@ func (s *SagaSuite) TestDisconnectedSequences() {
 	s.Require().Equal([]string{"a"}, s.saga.Root().StepTransitiveDependencies("b"))
 	s.Require().Equal([]string(nil), s.saga.Root().StepTransitiveDependencies("x"))
 	s.Require().Equal([]string{"x"}, s.saga.Root().StepTransitiveDependencies("y"))
+
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepInProgress("a"))
 	s.Require().True(s.saga.Root().StepInProgress("x"))
@@ -172,6 +185,7 @@ func (s *SagaSuite) TestDisconnectedSequences() {
 	s.Require().False(s.saga.Root().StepInProgress("y"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "a", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepInProgress("x"))
@@ -179,6 +193,7 @@ func (s *SagaSuite) TestDisconnectedSequences() {
 	s.Require().False(s.saga.Root().StepInProgress("y"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "x", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("x"))
@@ -186,6 +201,7 @@ func (s *SagaSuite) TestDisconnectedSequences() {
 	s.Require().True(s.saga.Root().StepInProgress("y"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "y", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().InProgress())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("x"))
@@ -193,6 +209,7 @@ func (s *SagaSuite) TestDisconnectedSequences() {
 	s.Require().True(s.saga.Root().StepEnded("y"))
 
 	s.shouldProcessCommand(model.EndStep{ID: "b", Output: &structpb.Value{}})
+	s.shouldProcessCommand(model.TriggerNextSteps{})
 	s.Require().True(s.saga.Root().Ended())
 	s.Require().True(s.saga.Root().StepEnded("a"))
 	s.Require().True(s.saga.Root().StepEnded("x"))

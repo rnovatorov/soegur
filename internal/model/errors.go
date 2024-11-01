@@ -7,6 +7,7 @@ import (
 var (
 	ErrSagaAlreadyBegun = errors.New("saga already begun")
 	ErrSagaEnded        = errors.New("saga ended")
+	ErrSagaNotBegun     = errors.New("saga not begun")
 	ErrSagaStepsMissing = errors.New("saga steps missing")
 
 	ErrDependencyGraphCyclic             = errors.New("dependency graph cyclic")
